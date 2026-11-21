@@ -5,6 +5,9 @@ client/dist
 .env
 .DS_Store
 *.log
-.claude/learning
-.cursor/learning
-.kiro/learning
+server/data.db
+server/data.db-wal
+server/data.db-shm
+.claude/
+.cursor/
+.kiro/

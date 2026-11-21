@@ -4,11 +4,30 @@ import { useAuth } from './AuthContext';
 
 const CallContext = createContext(null);
 
+// High-reliability STUN & free TURN relay servers for cross-network / mobile traversal
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    {
+      urls: 'turn:standard.relay.metered.ca:80',
+      username: 'e015d86b72a6b291d9d4352b',
+      credential: 'K8a8S/G9J0y4vY4d'
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:443',
+      username: 'e015d86b72a6b291d9d4352b',
+      credential: 'K8a8S/G9J0y4vY4d'
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+      username: 'e015d86b72a6b291d9d4352b',
+      credential: 'K8a8S/G9J0y4vY4d'
+    }
   ]
 };
 
@@ -31,9 +50,9 @@ export function CallProvider({ children }) {
   const pendingCandidatesRef = useRef([]);
   const timerRef = useRef(null);
   const audioContextRef = useRef(null);
-  const ringtoneOscillatorRef = useRef(null);
+  const ringtoneIntervalRef = useRef(null);
 
-  // Play synthesized web audio ringtone
+  // Realistic dual-frequency telephone ringtone (440Hz + 480Hz with 2s ring, 3s pause)
   const startRingtone = useCallback(() => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -41,16 +60,32 @@ export function CallProvider({ children }) {
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      const playTone = () => {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') return;
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      ringtoneOscillatorRef.current = osc;
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.setValueAtTime(0.06, now + 1.8);
+        gain.gain.linearRampToValueAtTime(0.001, now + 2.0);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 2.0);
+        osc2.stop(now + 2.0);
+      };
+
+      playTone();
+      ringtoneIntervalRef.current = setInterval(playTone, 4000);
     } catch (e) {
       // Audio autoplay policy
     }
@@ -58,13 +93,12 @@ export function CallProvider({ children }) {
 
   const stopRingtone = useCallback(() => {
     try {
-      if (ringtoneOscillatorRef.current) {
-        ringtoneOscillatorRef.current.stop();
-        ringtoneOscillatorRef.current.disconnect();
-        ringtoneOscillatorRef.current = null;
+      if (ringtoneIntervalRef.current) {
+        clearInterval(ringtoneIntervalRef.current);
+        ringtoneIntervalRef.current = null;
       }
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
         audioContextRef.current = null;
       }
     } catch (e) {}
@@ -118,12 +152,20 @@ export function CallProvider({ children }) {
 
       // Handle receiving remote audio/video tracks
       pc.ontrack = (event) => {
+        console.log('[WebRTC] Received remote track:', event.track.kind);
         if (event.streams && event.streams[0]) {
           setRemoteStream(event.streams[0]);
+        } else {
+          setRemoteStream((prev) => {
+            const stream = prev ? prev.clone() : new MediaStream();
+            stream.addTrack(event.track);
+            return stream;
+          });
         }
       };
 
       pc.onconnectionstatechange = () => {
+        console.log('[WebRTC] Connection state:', pc.connectionState);
         if (pc.connectionState === 'connected') {
           stopRingtone();
           setCallStatus('connected');
@@ -138,6 +180,17 @@ export function CallProvider({ children }) {
           pc.connectionState === 'closed'
         ) {
           cleanupCall();
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          stopRingtone();
+          setCallStatus('connected');
+        } else if (pc.iceConnectionState === 'failed') {
+          console.warn('[WebRTC] ICE failed, attempting restart...');
+          if (pc.restartIce) pc.restartIce();
         }
       };
 
@@ -156,17 +209,32 @@ export function CallProvider({ children }) {
       setCallStatus('calling');
       startRingtone();
 
-      // Acquire media stream
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: type === 'video'
-      });
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video:
+          type === 'video'
+            ? {
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                facingMode: 'user'
+              }
+            : false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setLocalStream(stream);
 
       const pc = createPeerConnection(targetUser.id);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: type === 'video'
+      });
       await pc.setLocalDescription(offer);
 
       socket.emit('call:initiate', {
@@ -187,10 +255,23 @@ export function CallProvider({ children }) {
     if (!socket || !peerUser || !incomingOfferRef.current) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: callType === 'video'
-      });
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video:
+          callType === 'video'
+            ? {
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                facingMode: 'user'
+              }
+            : false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setLocalStream(stream);
 
       const pc = createPeerConnection(peerUser.id);
@@ -201,7 +282,11 @@ export function CallProvider({ children }) {
       // Process any early arrived ICE candidates
       while (pendingCandidatesRef.current.length > 0) {
         const cand = pendingCandidatesRef.current.shift();
-        await pc.addIceCandidate(new RTCIceCandidate(cand));
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {
+          console.warn('[WebRTC] Early candidate error:', e);
+        }
       }
 
       const answer = await pc.createAnswer();
@@ -213,12 +298,14 @@ export function CallProvider({ children }) {
       });
 
       setCallStatus('connected');
-      timerRef.current = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => {
+          setCallDuration((prev) => prev + 1);
+        }, 1000);
+      }
     } catch (err) {
       console.error('Failed to accept call:', err);
-      alert('Failed to establish call connection.');
+      alert('Failed to establish call connection: ' + err.message);
       cleanupCall();
     }
   };
@@ -333,10 +420,19 @@ export function CallProvider({ children }) {
 
           while (pendingCandidatesRef.current.length > 0) {
             const cand = pendingCandidatesRef.current.shift();
-            await pcRef.current.addIceCandidate(new RTCIceCandidate(cand));
+            try {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {
+              console.warn('[WebRTC] Early candidate error:', e);
+            }
           }
 
           setCallStatus('connected');
+          if (!timerRef.current) {
+            timerRef.current = setInterval(() => {
+              setCallDuration((prev) => prev + 1);
+            }, 1000);
+          }
         } catch (err) {
           console.error('Error setting remote answer:', err);
         }

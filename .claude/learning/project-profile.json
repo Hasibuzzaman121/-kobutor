@@ -39,5 +39,5 @@
   "detectedAt": "2026-11-21T05:45:37.355Z",
   "appliedAt": "2026-11-21T05:45:37.355Z",
   "userPlan": "accept-detected",
-  "rationale": "Git analysis: 228 tracked files, 1 branch (1 local, 0 remote), 1 commits (1 last 30d), 1 author (30d), low activity, ~1 KB git objects. Collaborative or multi-branch product — full sync and attribution."
+  "rationale": "Git analysis: 239 tracked files, 1 branch (1 local, 1 remote), 3 commits (3 last 30d), 1 author (30d), low activity, ~1 KB git objects. Remote git (https://github.com/Hasibuzzaman121/-kobutor.git): 1 remote branch, 1 remote author (30d), via cache. Collaborative or multi-branch product — full sync and attribution."
 }

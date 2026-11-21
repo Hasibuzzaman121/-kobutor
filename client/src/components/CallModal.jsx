@@ -36,24 +36,27 @@ export default function CallModal() {
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
-  // Attach local media stream
+  // Attach local media stream whenever localStream or callStatus changes
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
+    if (callStatus === 'connected' && localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch((e) => console.warn('Local video play warning:', e));
     }
-  }, [localStream]);
+  }, [localStream, callStatus]);
 
-  // Attach remote media stream
+  // Attach remote media stream whenever remoteStream or callStatus changes
   useEffect(() => {
-    if (remoteStream) {
+    if (callStatus === 'connected' && remoteStream) {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch((e) => console.warn('Remote video play warning:', e));
       }
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch((e) => console.warn('Remote audio play warning:', e));
       }
     }
-  }, [remoteStream, callType]);
+  }, [remoteStream, callType, callStatus]);
 
   if (callStatus === 'idle') return null;
 
@@ -136,6 +139,9 @@ export default function CallModal() {
   // 3. CONNECTED CALL SCREEN (Full Screen Overlay)
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white animate-fade-in select-none">
+      {/* Hidden global audio element to ensure remote audio stream always plays */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+
       {/* Top Status Bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between p-3 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800">
         <div className="flex items-center gap-3">
@@ -187,7 +193,6 @@ export default function CallModal() {
         ) : (
           /* Audio-only Call View */
           <div className="text-center p-8">
-            <audio ref={remoteAudioRef} autoPlay />
             <div className="relative mx-auto w-32 h-32 mb-6 flex items-center justify-center">
               <span className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" />
               <Avatar user={peerUser} size="2xl" className="relative z-10" />
