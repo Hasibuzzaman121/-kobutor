@@ -1,7 +1,8 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-21T05:30:35.261Z",
+  "generatedAt": "2026-11-21T05:45:37.466Z",
   "workspacePath": "c:\\Users\\HASIB\\Downloads\\messege project",
+  "branch": "master",
   "skills": [
     {
       "name": "task-evidence-report",
@@ -96,7 +97,7 @@
         "**/.github/**/*.md",
         "**/src/**"
       ],
-      "installedInWorkspace": false,
+      "installedInWorkspace": true,
       "availableInGlobal": false,
       "inLibrary": true,
       "requiredForProfileInit": false
@@ -276,7 +277,7 @@
         "**/.claude/learning/task-skill-proposals.json",
         "**/.claude/learning/skill-adoption.jsonl"
       ],
-      "installedInWorkspace": false,
+      "installedInWorkspace": true,
       "availableInGlobal": false,
       "inLibrary": true,
       "requiredForProfileInit": false

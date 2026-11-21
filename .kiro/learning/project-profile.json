@@ -1,23 +1,26 @@
 {
   "version": 1,
-  "profileType": "throwaway",
+  "profileType": "team-multi-agent",
   "detectedFrom": {
     "gitRemotes": [],
     "teamSize": "solo",
     "aiTools": [
-      "claude"
+      "cursor",
+      "claude",
+      "copilot",
+      "kiro"
     ],
     "budgetPattern": "none",
-    "hasSharedClaudeSkills": false,
-    "isGitRepo": false,
-    "branchCount": 0,
-    "trackedFileCount": 0,
-    "repoSizeKb": 0,
-    "commitsLast30d": 0,
-    "commitsTotal": 0,
+    "hasSharedClaudeSkills": true,
+    "isGitRepo": true,
+    "branchCount": 1,
+    "trackedFileCount": 228,
+    "repoSizeKb": 1,
+    "commitsLast30d": 1,
+    "commitsTotal": 1,
     "projectAgeDays": 0,
-    "authorCount30d": 0,
-    "activityLevel": "none",
+    "authorCount30d": 1,
+    "activityLevel": "low",
     "hasAidlcWorkflow": false,
     "hasPendingProfileInit": false,
     "remoteReachable": false,
@@ -29,12 +32,12 @@
     "remoteProbeSource": "none"
   },
   "enabledFeatures": {
-    "autoOptimizer": false
+    "autoOptimizer": true
   },
-  "costTracking": "off",
-  "confidence": 0.92,
-  "detectedAt": "2026-11-21T03:36:49.843Z",
-  "appliedAt": "2026-11-21T03:36:55.755Z",
+  "costTracking": "full",
+  "confidence": 0.75,
+  "detectedAt": "2026-11-21T05:45:37.355Z",
+  "appliedAt": "2026-11-21T05:45:37.355Z",
   "userPlan": "accept-detected",
-  "rationale": "No git repository — treated as a scratch workspace. Scratch or non-git layout — minimal extension overhead."
+  "rationale": "Git analysis: 228 tracked files, 1 branch (1 local, 0 remote), 1 commits (1 last 30d), 1 author (30d), low activity, ~1 KB git objects. Collaborative or multi-branch product — full sync and attribution."
 }
